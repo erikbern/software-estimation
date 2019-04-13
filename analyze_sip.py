@@ -1,11 +1,15 @@
 import csv
 import math
+import matplotlib
 import numpy
 import scipy.optimize
 import scipy.stats
 import seaborn
 from matplotlib import pyplot
 
+# https://raw.githubusercontent.com/Derek-Jones/SiP_dataset/master/Sip-task-info.csv
+actuals = []
+estimates = []
 deltas = []
 with open('Sip-task-info.csv') as f:
     reader = csv.reader(f)
@@ -23,45 +27,79 @@ with open('Sip-task-info.csv') as f:
         if estimate is None or actual is None:
             continue
         estimate, actual = float(estimate), float(actual)
-        deltas.append(math.log(actual) - math.log(estimate))
+        actuals.append(actual)
+        estimates.append(estimate)
+        if estimate >= 5:
+            deltas.append(math.log(actual) - math.log(estimate))
 
 
-def fit(zs):
-    print('min/max zs:', min(zs), max(zs))
-    print('p9/p99/p999:', numpy.percentile(zs, [90, 99, 99.9]))
-    print('p9/p99/p999 of exp:', numpy.percentile(numpy.exp(zs), [90, 99, 99.9]))
-    print('mean(exp):', numpy.mean(numpy.exp(zs)))
-    zs = numpy.clip(zs, -10, 10)
-    seaborn.distplot(zs)
+matplotlib.style.use('ggplot')
 
-    def neg_ll(params):
-        df, scale = numpy.exp(params)
-        return -numpy.sum(scipy.stats.t.logpdf(zs, df, 0, scale))
+pyplot.figure(figsize=(9, 6))
+pyplot.scatter(estimates, actuals, alpha=0.05)
+pyplot.xscale('log')
+pyplot.yscale('log')
+pyplot.xlabel('Estimated number of hours')
+pyplot.ylabel('Actual number of hours')
+pyplot.xlim([1e-1, 1e3])
+pyplot.ylim([1e-1, 1e3])
+pyplot.plot([1e-1, 1e3], [1e-1, 1e3], color='C1', alpha=0.5, label='Estimated=actual')
+pyplot.legend()
+pyplot.tight_layout()
+pyplot.savefig('scatter.png')
 
-    params = scipy.optimize.minimize(neg_ll, (0, 0)).x
+print('mean:', numpy.mean(numpy.exp(deltas)))
+print('median:', numpy.median(numpy.exp(deltas)))
+print('p99:', numpy.percentile(numpy.exp(deltas), 99))
+
+pyplot.figure(figsize=(9, 6))
+seaborn.distplot(deltas, kde=False, norm_hist=True)
+pyplot.xlabel('log(actual / estimated)')
+pyplot.xlim([-5, 5])
+pyplot.tight_layout()
+pyplot.savefig('distribution.png')
+
+def neg_ll(params):
     df, scale = numpy.exp(params)
-    print('nu:', df)
-    print('scale:', scale)
+    return -numpy.sum(scipy.stats.t.logpdf(deltas, df, 0, scale))
 
-    xs = numpy.linspace(-10, 10, 1000)
-    std = 0.5
-    ys = scipy.stats.t.pdf(xs, df, 0, scale)
-    pyplot.plot(xs, ys, color='red')
-    pyplot.xlim([-10, 10])
-    pyplot.show()
+params = scipy.optimize.minimize(neg_ll, (0, 0)).x
+df, scale = numpy.exp(params)
+print('nu:', df)
+print('scale:', scale)
 
-    return df, scale
+xs = numpy.linspace(-10, 10, 1000)
+std = 0.5
+ys = scipy.stats.t.pdf(xs, df, 0, scale)
+pyplot.plot(xs, ys, color='C1', label='Best fit of Student\'s t')
+pyplot.xlim([-5, 5])
+pyplot.legend()
+pyplot.tight_layout()
+pyplot.savefig('distribution_plus_t.png')
 
-nu, scale = fit(deltas)
-print(scipy.stats.t.cdf([-10, 10], df=nu, scale=scale))
-zs = scipy.stats.t.rvs(df=nu, scale=scale, size=10000)
-fit(zs)
+# zs = scipy.stats.t.rvs(df=df, scale=scale, size=1000000)
+d = scipy.stats.t(df=df, scale=scale)
+xs = numpy.linspace(-30, 30, 1000000)
+print('mean:', numpy.mean(d.pdf(xs) * numpy.exp(xs)))
+print('median:', numpy.exp(d.ppf(0.5)))
+print('p99:', numpy.exp(d.ppf(0.99)))
+print('p99.9:', numpy.exp(d.ppf(0.999)))
+print('p99.99:', numpy.exp(d.ppf(0.9999)))
 
-a = 2*nu - 1
+a = 2*df - 1
 b = scale * a
-ss = scipy.stats.invgamma.rvs(a=a, scale=b, size=10000)
-zs = scipy.stats.norm.rvs(scale=ss)
-nu, scale = fit(zs)
+d = scipy.stats.invgamma(a=a, scale=b)
+xs = numpy.linspace(0, 5, 10000)
+pyplot.figure(figsize=(9, 6))
+pyplot.fill_between(xs, 0*xs, d.pdf(xs), alpha=0.2, color='C0', label='Distribution of $\\sigma$')
+pyplot.plot(xs, d.pdf(xs), color='C0')
+pyplot.legend()
+pyplot.tight_layout()
+pyplot.savefig('sigma_distribution.png')
 
-seaborn.distplot(ss)
-pyplot.show()
+#pyplot.figure(figsize=(9, 6))
+#ss = scipy.stats.invgamma.rvs(a=a, scale=b, size=10000)
+#zs = scipy.stats.norm.rvs(scale=ss)
+#zs = numpy.clip(zs, -5, 5)
+#seaborn.distplot(zs)
+#pyplot.show()
