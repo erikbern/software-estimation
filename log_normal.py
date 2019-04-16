@@ -9,7 +9,7 @@ matplotlib.style.use('ggplot')
 # Plot log-normal distribution
 pyplot.figure(figsize=(9, 6))
 std = 1
-xs = numpy.linspace(0, 10, 1000)
+xs = numpy.linspace(0, 12, 1000)
 ys = scipy.stats.lognorm.pdf(xs, s=std)
 pyplot.plot(xs, ys, color='C0', lw=3)
 pyplot.fill_between(xs, ys*0, ys, color='C0', alpha=0.3, label='Distribution')
@@ -18,6 +18,7 @@ mean = numpy.exp(0 + std**2/2)
 pyplot.axvline(x=numpy.exp(0 + std**2/2), color='C2', lw=3, label='Mean : %.2f' % mean)
 pyplot.xlabel('Blowup factor (actual/estimated)')
 pyplot.ylabel('Probability distribution')
+pyplot.xlim([0, 10])
 pyplot.legend()
 pyplot.title('Standard deviation $ \\sigma = %.2f $' % std)
 pyplot.tight_layout()
@@ -25,13 +26,14 @@ pyplot.savefig('log_normal.png')
 
 # Plot normal distributions
 pyplot.figure(figsize=(9, 6))
-xs = numpy.linspace(-5, 5, 1000)
+xs = numpy.linspace(-10, 10, 1000)
 for std in [0.5, 1, 2]:
     ys = scipy.stats.norm.pdf(xs, scale=std)
     pyplot.plot(xs, ys, lw=3, label='Standard deviation $ \\sigma = %.2f $' % std)
 pyplot.xlabel('Logarithm of blowup factor: log(actual/estimated)')
 pyplot.ylabel('Probability distribution')
 pyplot.legend()
+pyplot.xlim([-5, 5])
 pyplot.tight_layout()
 pyplot.savefig('normal.png')
 
@@ -61,7 +63,7 @@ for sizes, stds in [([1, 1, 1], [1, 1, 1]),
 
 
 pyplot.figure(figsize=(9, 6))
-sigmas = numpy.linspace(0, 5, 10000)
+sigmas = numpy.linspace(0, 5.5, 10000)
 medians = numpy.exp(sigmas * 0)
 means = numpy.exp(sigmas**2/2)
 # p99s = [numpy.exp(scipy.stats.norm.ppf(0.99, loc=0, scale=sigma)) for sigma in sigmas]
@@ -73,6 +75,7 @@ pyplot.plot(sigmas, p99s, lw=3, label='99th percentile')
 pyplot.yscale('log')
 pyplot.xlabel('$ \\sigma $')
 pyplot.ylabel('Blowup factor')
+pyplot.xlim([0, 5])
 pyplot.legend()
 pyplot.tight_layout()
 pyplot.savefig('sigmas.png')
